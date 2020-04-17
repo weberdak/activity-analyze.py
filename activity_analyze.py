@@ -5,6 +5,20 @@ import scipy.optimize as optimization
 import argparse
 import matplotlib.gridspec as gridspec
 
+
+def log(text,f):
+    '''Very simple logger. Writes to file object and terminal.
+    Parameters
+    ----------
+    text: str
+       Text to write to file.
+    f: file object
+       File to write lof text to.
+    '''
+    f.write(text+'\n')
+    print(text)
+
+    
 def readData(fname):
     '''Read plate reader file'''
     return pd.read_csv(fname,skiprows=2,sep='\t',header=0)
@@ -44,16 +58,16 @@ def convert(rate,path,epsilon,well_serca,well_vol):
     return ((rate/(epsilon*path))*60*1000000*(200/1000000))/(well_serca*(well_vol/1000))
 
 
-def analyze_row(name,plate,row,time_range,exclude,series,interval,path,epsilon,well_serca,well_vol):
+def analyze_row(name,plate,row,time_range,exclude,series,interval,path,epsilon,well_serca,well_vol,f):
 
     # Read plate file
-    print('# Analyzing {}...'.format(name))
-    print('# Reading row {} from {}'.format(row,plate))
+    log('# Analyzing {}...'.format(name),f)
+    log('# Reading row {} from {}'.format(row,plate),f)
     data = readData(plate)
 
     # Set columns to exclude
     badCols = [ row+str(i) for i in exclude ]
-    print('# Excluding wells from pKCa fitting: {}'.format(' '.join(badCols)))
+    log('# Excluding wells from pKCa fitting: {}'.format(' '.join(badCols)),f)
 
     # Set columns to analyze
     colDict = { row+str(n): c for n,c in zip(range(1,13,1), series) }
@@ -61,19 +75,19 @@ def analyze_row(name,plate,row,time_range,exclude,series,interval,path,epsilon,w
     for k in colDict.keys():
         if k not in badCols:
             colList.append(k)
-    print('# Columns used for fitting: {}'.format(colList))
+    log('# Columns used for fitting: {}'.format(colList),f)
     pCaList = [ colDict[k] for k in colList ]
-    print('# pCa values for wells measured: {}'.format(pCaList))
+    log('# pCa values for wells measured: {}'.format(pCaList),f)
 
     # Set up fit linear decays for well time series
     nTimePoints = len(data[colList[0]])
     timeList = np.arange(0,nTimePoints*interval,interval)
     lo = time_range[0]
     hi = time_range[1]
-    print('# Fitting decay rates for each well...')
-    print('# Measurements detected for each well: {}'.format(nTimePoints))
-    print('# Time interval between measurements: {} seconds'.format(interval))
-    print('# Only fitting rates from measurement {} to {}'.format(lo, hi))
+    log('# Fitting decay rates for each well...',f)
+    log('# Measurements detected for each well: {}'.format(nTimePoints),f)
+    log('# Time interval between measurements: {} seconds'.format(interval),f)
+    log('# Only fitting rates from measurement {} to {}'.format(lo, hi),f)
     
     # Linear fits
     rates = []
@@ -84,11 +98,11 @@ def analyze_row(name,plate,row,time_range,exclude,series,interval,path,epsilon,w
         intercepts.append(fit[1])
         
     # Hill fit
-    print('# Converting rates from AU/sec to international units (umole/min/mg) for hill fitting')
-    print('# Well SERCA: {} mg/mL'.format(well_serca))
-    print('# Well volume: {} uL'.format(well_vol))
-    print('# Well path length: {} cm'.format(path))
-    print('# NADH epsilon: {} M-1 cm-1'.format(epsilon))
+    log('# Converting rates from AU/sec to international units (umole/min/mg) for hill fitting',f)
+    log('# Well SERCA: {} mg/mL'.format(well_serca),f)
+    log('# Well volume: {} uL'.format(well_vol),f)
+    log('# Well path length: {} cm'.format(path),f)
+    log('# NADH epsilon: {} M-1 cm-1'.format(epsilon),f)
     rates_c = [ convert(r,path,epsilon,well_serca,well_vol) for r in rates ]
     fit = fit_hill(pCaList,rates_c)
     vmax = fit[0]
@@ -97,11 +111,11 @@ def analyze_row(name,plate,row,time_range,exclude,series,interval,path,epsilon,w
     c = fit[3]
 
     # Show results
-    print('# Results for {}:'.format(name))
-    print('# Vmax: {0:.4f} umole/min/mg (maximum ATPase rate)'.format(vmax))
-    print('# n: {0:.4f} (cooperativity coefficient)'.format(n))
-    print('# pKCa: {0:.4f} (pCa at 50% Vmax)'.format(pkca))
-    print('# Vmin: {0:.4f} umole/min/mg (minimum ATPase rate)'.format(c))
+    log('# Results for {}:'.format(name),f)
+    log('# Vmax: {0:.4f} umole/min/mg (maximum ATPase rate)'.format(vmax),f)
+    log('# n: {0:.4f} (cooperativity coefficient)'.format(n),f)
+    log('# pKCa: {0:.4f} (pCa at 50% Vmax)'.format(pkca),f)
+    log('# Vmin: {0:.4f} umole/min/mg (minimum ATPase rate)'.format(c),f)
 
     # Return all results in list
     results = dict()
@@ -248,10 +262,13 @@ def main():
     # Read command line arguments
     args = parse_args()
 
+    # Start log file
+    f = open(args.prefix+'.txt', 'w')
+    
     results_all = []
     # Analyse replicate 1
-    print('# REPLICATE 1')
-    print('# -----------')
+    log('# REPLICATE 1',f)
+    log('# -----------',f)
     if args.rep1_row != 'N':
         result_1 = analyze_row(args.prefix+'.rep1',
                                args.rep1_plate,
@@ -263,18 +280,19 @@ def main():
                                args.well_path,
                                args.well_eps,
                                args.well_serca,
-                               args.well_vol
+                               args.well_vol,
+                               f
         )
         results_all.append(result_1)
-        print('#')
+        log('#',f)
     else:
         result_1 = blank_results()
-        print('# Replicate 1 not specified.')
-        print('#')
+        log('# Replicate 1 not specified.',f)
+        log('#',f)
         
     # Analyse replicate 2
-    print('# REPLICATE 2')
-    print('# -----------')
+    log('# REPLICATE 2',f)
+    log('# -----------',f)
     if args.rep2_row != 'N':
         result_2 = analyze_row(args.prefix+'.rep2',
                                args.rep2_plate,
@@ -286,18 +304,19 @@ def main():
                                args.well_path,
                                args.well_eps,
                                args.well_serca,
-                               args.well_vol
+                               args.well_vol,
+                               f
         )
         results_all.append(result_2)
-        print('#')
+        log('#',f)
     else:
         result_2 = blank_results()
-        print('# Replicate 2 not specified.')
-        print('#')
+        log('# Replicate 2 not specified.',f)
+        log('#',f)
         
     # Analyse replicate 3
-    print('# REPLICATE 3')
-    print('# -----------')
+    log('# REPLICATE 3',f)
+    log('# -----------',f)
     if args.rep3_row != 'N':
         result_3 = analyze_row(args.prefix+'.rep3',
                                args.rep3_plate,
@@ -309,34 +328,35 @@ def main():
                                args.well_path,
                                args.well_eps,
                                args.well_serca,
-                               args.well_vol
+                               args.well_vol,
+                               f
         )
         results_all.append(result_3)
-        print('#')
+        log('#',f)
     else:
         result_3 = blank_results()
-        print('# Replicate 3 not specified.')
-        print('#')
+        log('# Replicate 3 not specified.',f)
+        log('#',f)
 
     # Summary
     results = ( result_1, result_2, result_3 )
-    print('# SUMMARY')
-    print('# -------')
-    print('# Rep.\t\tVmax\t\tCoop\t\tpKCa\t\tVmin')
-    print('# 1\t\t{0:.4f}\t\t{1:.4f}\t\t{2:.4f}\t\t{3:.4f}'.format(result_1['vmax'],
+    log('# SUMMARY',f)
+    log('# -------',f)
+    log('# Rep.\tVmax\tCoop\tpKCa\tVmin',f)
+    log('# 1\t{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}'.format(result_1['vmax'],
                                                                    result_1['coop'],
                                                                    result_1['pkca'],
-                                                                   result_1['vmin']))
+                                                                   result_1['vmin']),f)
     
-    print('# 2\t\t{0:.4f}\t\t{1:.4f}\t\t{2:.4f}\t\t{3:.4f}'.format(result_2['vmax'],
+    log('# 2\t{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}'.format(result_2['vmax'],
                                                                    result_2['coop'],
                                                                    result_2['pkca'],
-                                                                   result_2['vmin']))
+                                                                   result_2['vmin']),f)
 
-    print('# 3\t\t{0:.4f}\t\t{1:.4f}\t\t{2:.4f}\t\t{3:.4f}'.format(result_3['vmax'],
+    log('# 3\t{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}'.format(result_3['vmax'],
                                                                    result_3['coop'],
                                                                    result_3['pkca'],
-                                                                   result_3['vmin']))
+                                                                   result_3['vmin']),f)
 
     # Get averages
     vmaxs = [ result['vmax'] for result in results if result['vmax'] != 0 ]
@@ -351,15 +371,15 @@ def main():
     vmins = [ result['vmin'] for result in results if result['vmin'] != 0 ]
     avg_vmin = np.mean(vmins)
     std_vmin = np.std(vmins)
-    print('# Avg.\t\t{0:.4f}\t\t{1:.4f}\t\t{2:.4f}\t\t{3:.4f}'.format(avg_vmax,
+    log('# Avg.\t{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}'.format(avg_vmax,
                                                                       avg_coop,
                                                                       avg_pkca,
-                                                                      avg_vmin))
-    print('# Std.\t\t{0:.4f}\t\t{1:.4f}\t\t{2:.4f}\t\t{3:.4f}'.format(std_vmax,
+                                                                      avg_vmin),f)
+    log('# Std.\t{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}'.format(std_vmax,
                                                                       std_coop,
                                                                       std_pkca,
-                                                                      std_vmin))
-    print('#')
+                                                                      std_vmin),f)
+    log('#',f)
 
     # Sort through ATPase rates. Fill missing values with 0.
     rates_lists = []
@@ -377,9 +397,9 @@ def main():
                 rates.append(temp_dict[pca])        
         rates_lists.append(rates)
 
-    print('# PKCA CURVES')
-    print('# -----------')
-    print('# pCa\tRep1\tRep2\tRep3\tAvg\tStd\tAvg_norm\tStd_norm')
+    log('# PKCA CURVES',f)
+    log('# -----------',f)
+    log('# pCa\tRep1\tRep2\tRep3\tAvg\tStd\tAvg_norm\tStd_norm',f)
     i=0
     avgs = []
     stds = []
@@ -396,14 +416,14 @@ def main():
         avgs_norm.append(np.mean(temp_rn))
         stds_norm.append(np.std(temp_rn))
         
-        print('{0}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\t{6:.4f}\t{7:.4f}'.format(pca,
+        log('{0}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\t{6:.4f}\t{7:.4f}'.format(pca,
                                                                                           rates_lists[0][i],
                                                                                           rates_lists[1][i],
                                                                                           rates_lists[2][i],
                                                                                           avgs[i],
                                                                                           stds[i],
                                                                                           avgs_norm[i],
-                                                                                          stds_norm[i]))
+                                                                                          stds_norm[i]),f)
         i+=1
 
         
@@ -422,7 +442,21 @@ def main():
     s_n = [ (y-avg_vmin)/avg_vmax for y in s ]
     sim_ylists.append(s)
     sim_ylists.append(s_n)
-
+    
+    # Write fits to file
+    log('#\n# Writing fits to {}.fit.txt.'.format(args.prefix),f)
+    ff = open(args.prefix+'.fit.txt', 'w')
+    ff.write('# pCa\tRep1\tRep2\tRep3\tAvg\tNorm\n')
+    i=0
+    for x in sim_xlist:
+        ff.write('{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\n'.format(x,
+                                                                        sim_ylists[0][i],
+                                                                        sim_ylists[1][i],
+                                                                        sim_ylists[2][i],
+                                                                        sim_ylists[3][i],
+                                                                        sim_ylists[4][i]))
+        i+=1
+    ff.close()
     
     # Plot all data
     fig = plt.figure(figsize=(6,6))
@@ -478,7 +512,8 @@ def main():
             ax_h.set_title('{}'.format(result['name']),size=6,loc='left')
 
     plt.tight_layout()
-    print('#\n# Outputing figure to {}.jpg'.format(args.prefix))
+    log('# Outputing figure to {}.jpg'.format(args.prefix),f)
+    f.close()
     plt.savefig('{}.jpg'.format(args.prefix),dpi=300)
     plt.show()
         
