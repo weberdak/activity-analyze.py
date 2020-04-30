@@ -233,6 +233,46 @@ def parse_args():
         default=[ 0, 60 ]
     )
     parser.add_argument(
+        '--rep4_row', type=str,
+        help='Row for replicate 4.',
+        choices=[ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'N' ], default='N'
+    )
+    parser.add_argument(
+        '--rep4_plate', type=str,
+        help='Plate reader file for replicate 4.',
+        default=''
+    )
+    parser.add_argument(
+        '--rep4_exclude', type=int, nargs='+',
+        help='Exclude these wells from replicate 4.',
+        choices=[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 ]
+    )
+    parser.add_argument(
+        '--rep4_range', type=int, nargs='+',
+        help='First and last time point to calculate rate for replicate 4.',
+        default=[ 0, 60 ]
+    )
+    parser.add_argument(
+        '--rep5_row', type=str,
+        help='Row for replicate 5.',
+        choices=[ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'N' ], default='N'
+    )
+    parser.add_argument(
+        '--rep5_plate', type=str,
+        help='Plate reader file for replicate 5.',
+        default=''
+    )
+    parser.add_argument(
+        '--rep5_exclude', type=int, nargs='+',
+        help='Exclude these wells from replicate 5.',
+        choices=[ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 ]
+    )
+    parser.add_argument(
+        '--rep5_range', type=int, nargs='+',
+        help='First and last time point to calculate rate for replicate 5.',
+        default=[ 0, 60 ]
+    )
+    parser.add_argument(
         '--well_serca', type=float,
         help='Concentration of SERCA in well (mg/mL).',
         default=0.0044
@@ -338,8 +378,56 @@ def main():
         log('# Replicate 3 not specified.',f)
         log('#',f)
 
+    # Analyse replicate 4
+    log('# REPLICATE 4',f)
+    log('# -----------',f)
+    if args.rep4_row != 'N':
+        result_4 = analyze_row(args.prefix+'.rep4',
+                               args.rep4_plate,
+                               args.rep4_row,
+                               args.rep4_range,
+                               args.rep4_exclude,
+                               args.series,
+                               args.interval,
+                               args.well_path,
+                               args.well_eps,
+                               args.well_serca,
+                               args.well_vol,
+                               f
+        )
+        results_all.append(result_4)
+        log('#',f)
+    else:
+        result_4 = blank_results()
+        log('# Replicate 4 not specified.',f)
+        log('#',f)
+
+    # Analyse replicate 3
+    log('# REPLICATE 5',f)
+    log('# -----------',f)
+    if args.rep5_row != 'N':
+        result_5 = analyze_row(args.prefix+'.rep5',
+                               args.rep5_plate,
+                               args.rep5_row,
+                               args.rep5_range,
+                               args.rep5_exclude,
+                               args.series,
+                               args.interval,
+                               args.well_path,
+                               args.well_eps,
+                               args.well_serca,
+                               args.well_vol,
+                               f
+        )
+        results_all.append(result_5)
+        log('#',f)
+    else:
+        result_5 = blank_results()
+        log('# Replicate 5 not specified.',f)
+        log('#',f)
+    
     # Summary
-    results = ( result_1, result_2, result_3 )
+    results = ( result_1, result_2, result_3, result_4, result_5 )
     log('# SUMMARY',f)
     log('# -------',f)
     log('# Rep.\tVmax\tCoop\tpKCa\tVmin',f)
@@ -358,6 +446,16 @@ def main():
                                                                    result_3['pkca'],
                                                                    result_3['vmin']),f)
 
+    log('# 4\t{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}'.format(result_4['vmax'],
+                                                                   result_4['coop'],
+                                                                   result_4['pkca'],
+                                                                   result_4['vmin']),f)
+
+    log('# 5\t{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}'.format(result_5['vmax'],
+                                                                   result_5['coop'],
+                                                                   result_5['pkca'],
+                                                                   result_5['vmin']),f)
+    
     # Get averages
     vmaxs = [ result['vmax'] for result in results if result['vmax'] != 0 ]
     avg_vmax = np.mean(vmaxs)
@@ -399,7 +497,7 @@ def main():
 
     log('# PKCA CURVES',f)
     log('# -----------',f)
-    log('# pCa\tRep1\tRep2\tRep3\tAvg\tStd\tAvg_norm\tStd_norm',f)
+    log('# pCa\tRep1\tRep2\tRep3\tRep4\tRep5\tAvg\tStd\tAvg_norm\tStd_norm',f)
     i=0
     avgs = []
     stds = []
@@ -407,7 +505,7 @@ def main():
     stds_norm = []
     for pca in args.series:
         # Get average. Remove null values.
-        l = range(3)
+        l = range(5)
         temp_r = [ rates_lists[n][i] for n in l if rates_lists[n][i] != 0]
         temp_rn = [ (r-avg_vmin)/avg_vmax for r in temp_r ]
         
@@ -416,14 +514,16 @@ def main():
         avgs_norm.append(np.mean(temp_rn))
         stds_norm.append(np.std(temp_rn))
         
-        log('{0}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\t{6:.4f}\t{7:.4f}'.format(pca,
-                                                                                          rates_lists[0][i],
-                                                                                          rates_lists[1][i],
-                                                                                          rates_lists[2][i],
-                                                                                          avgs[i],
-                                                                                          stds[i],
-                                                                                          avgs_norm[i],
-                                                                                          stds_norm[i]),f)
+        log('{0}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\t{6:.4f}\t{7:.4f}\t{8:.4f}\t{9:.4f}'.format(pca,
+                                                                                                          rates_lists[0][i],
+                                                                                                          rates_lists[1][i],
+                                                                                                          rates_lists[2][i],
+                                                                                                          rates_lists[3][i],
+                                                                                                          rates_lists[4][i],
+                                                                                                          avgs[i],
+                                                                                                          stds[i],
+                                                                                                          avgs_norm[i],
+                                                                                                          stds_norm[i]),f)
         i+=1
 
         
@@ -446,35 +546,32 @@ def main():
     # Write fits to file
     log('#\n# Writing fits to {}.fit.txt.'.format(args.prefix),f)
     ff = open(args.prefix+'.fit.txt', 'w')
-    ff.write('# pCa\tRep1\tRep2\tRep3\tAvg\tNorm\n')
+    ff.write('# pCa\tRep1\tRep2\tRep3\tRep4\tRep5\tAvg\tNorm\n')
     i=0
     for x in sim_xlist:
-        ff.write('{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\n'.format(x,
-                                                                        sim_ylists[0][i],
-                                                                        sim_ylists[1][i],
-                                                                        sim_ylists[2][i],
-                                                                        sim_ylists[3][i],
-                                                                        sim_ylists[4][i]))
+        ff.write('{0:.4f}\t{1:.4f}\t{2:.4f}\t{3:.4f}\t{4:.4f}\t{5:.4f}\t{6:.4f}\t{7:.4f}\n'.format(x,
+                                                                                                   sim_ylists[0][i],
+                                                                                                   sim_ylists[1][i],
+                                                                                                   sim_ylists[2][i],
+                                                                                                   sim_ylists[3][i],
+                                                                                                   sim_ylists[4][i],
+                                                                                                   sim_ylists[5][i],
+                                                                                                   sim_ylists[6][i]))
         i+=1
     ff.close()
     
     # Plot all data
-    fig = plt.figure(figsize=(6,6))
-    gs = gridspec.GridSpec(3,2)
-    ax1 = fig.add_subplot(gs[0,0])
-    ax2 = fig.add_subplot(gs[0,1])
-    ax3 = fig.add_subplot(gs[1,0])
-    ax4 = fig.add_subplot(gs[1,1])
-    ax5 = fig.add_subplot(gs[2,0])
-    ax6 = fig.add_subplot(gs[2,1])
-    #ax7 = fig.add_subplot(gs[3,0])
-    #ax8 = fig.add_subplot(gs[3,1])
-
     j = -1
-    for ax_r,ax_h,result in ((ax1,ax2,result_1),(ax3,ax4,result_2),(ax5,ax6,result_3)):
+    for result in (result_1,result_2,result_3,result_4,result_5):
         j+=1
-        
+
+        # Only output plot if there is data
         if result['absorbance']:
+            fig = plt.figure(figsize=(6,2))
+            gs = gridspec.GridSpec(1,2)
+            ax_r = fig.add_subplot(gs[0,0])
+            ax_h = fig.add_subplot(gs[0,1])
+            
             for i,c in enumerate(result['wells']):
 
                 # Plot Absorbance vs. time
@@ -494,7 +591,7 @@ def main():
             ax_h.scatter(args.series,avgs, c='black',
                          marker='o',s=10, linewidths=0.5,
                          edgecolor='black')
-            ax_h.plot(sim_xlist,sim_ylists[3],linestyle='--',color='black',linewidth=0.5)
+            ax_h.plot(sim_xlist,sim_ylists[5],linestyle='--',color='black',linewidth=0.5)
             ax_h.errorbar(args.series,avgs,yerr=stds,linewidth=0.0,ecolor='black', elinewidth=0.5, capsize=1)
             
             # Replicate
@@ -504,18 +601,20 @@ def main():
             ax_h.plot(sim_xlist,sim_ylists[j],linestyle='--',color='red',linewidth=0.5)
 
             
-            ax_h.xaxis.set_tick_params(labelsize=6)
-            ax_h.yaxis.set_tick_params(labelsize=6)
+            ax_h.xaxis.set_tick_params(labelsize=8)
+            ax_h.yaxis.set_tick_params(labelsize=8)
             ax_h.set_xlim(8.5,4.5)
-            ax_h.set_xlabel('pCa',size=6)
-            ax_h.set_ylabel('Activity ($\mu$mole/mg/min)',size=6)
-            ax_h.set_title('{}'.format(result['name']),size=6,loc='left')
+            ax_h.set_xlabel('pCa',size=8)
+            ax_h.set_ylabel('Activity ($\mu$mole/mg/min)',size=8)
+            ax_h.set_title('{}'.format(result['name']),size=8,loc='left')
 
-    plt.tight_layout()
-    log('# Outputing figure to {}.jpg'.format(args.prefix),f)
+            # Output replicate plot to file
+            plt.tight_layout()
+            log('# Outputting figure to {}.rep{}.jpg'.format(args.prefix,j+1),f)
+            plt.savefig('{}.rep{}.jpg'.format(args.prefix,j+1),dpi=300)
+            
     f.close()
-    plt.savefig('{}.jpg'.format(args.prefix),dpi=300)
-    plt.show()
+    
         
 if __name__ == '__main__':
     main()
