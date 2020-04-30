@@ -303,7 +303,7 @@ def main():
     args = parse_args()
 
     # Start log file
-    f = open(args.prefix+'.txt', 'w')
+    f = open(args.prefix+'.log', 'w')
     
     results_all = []
     # Analyse replicate 1
