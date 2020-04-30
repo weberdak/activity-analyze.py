@@ -4,19 +4,19 @@ from matplotlib.ticker import (MultipleLocator, FormatStrFormatter,
                                AutoMinorLocator)
 
 # Specify pCa data file, hill fit file, color and marker type for plotting.
-experiments = [ ('serca_alone.txt', 'serca_alone.fit.txt', 'black', 'o'),
-                ('serca_afa.txt', 'serca_afa.fit.txt', 'blue', 's'),
-                ('serca_afa_ps16.txt', 'serca_afa_ps16.fit.txt', 'red', '^')]
+experiments = [ ('log/serca_alone.log', 'fit/serca_alone.fit.txt', 'black', 'o'),
+                ('log/serca_afa.log', 'fit/serca_afa.fit.txt', 'blue', 's'),
+                ('log/serca_afa_ps16.log', 'fit/serca_afa_ps16.fit.txt', 'red', '^')]
 
 # Plot Normalized activity assays
 fig,ax = plt.subplots(figsize=(3,2))
 
 for e in experiments:
     x = np.genfromtxt(e[0],usecols=(0),dtype=float)
-    y = np.genfromtxt(e[0],usecols=(6),dtype=float)
-    y_err = np.genfromtxt(e[0],usecols=(7),dtype=float)
+    y = np.genfromtxt(e[0],usecols=(8),dtype=float)
+    y_err = np.genfromtxt(e[0],usecols=(9),dtype=float)
     x_fit = np.genfromtxt(e[1],usecols=(0),dtype=float)
-    y_fit = np.genfromtxt(e[1],usecols=(5),dtype=float)
+    y_fit = np.genfromtxt(e[1],usecols=(7),dtype=float)
 
     # Plot data
     ax.plot(x_fit,y_fit,linewidth=0.5,color=e[2])
@@ -41,4 +41,4 @@ for e in experiments:
     
 plt.tight_layout()
 plt.savefig('plot_assay.ps',dpi=300)
-plt.show()
+#plt.show()
