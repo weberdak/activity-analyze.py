@@ -103,12 +103,20 @@ def analyze_row(name,plate,row,time_range,exclude,series,interval,path,epsilon,w
     log('# Well volume: {} uL'.format(well_vol),f)
     log('# Well path length: {} cm'.format(path),f)
     log('# NADH epsilon: {} M-1 cm-1'.format(epsilon),f)
-    rates_c = [ convert(r,path,epsilon,well_serca,well_vol) for r in rates ]
-    fit = fit_hill(pCaList,rates_c)
-    vmax = fit[0]
-    n = fit[1]
-    pkca = fit[2]
-    c = fit[3]
+
+    try:
+        rates_c = [ convert(r,path,epsilon,well_serca,well_vol) for r in rates ]
+        fit = fit_hill(pCaList,rates_c)
+        vmax = fit[0]
+        n = fit[1]
+        pkca = fit[2]
+        c = fit[3]
+    except RuntimeError:
+        vmax = 1
+        n = 2
+        pkca = 6.5
+        c = 0
+        log('# WARNING: NO HILL FIT FOUND. ASSIGNING Vmax = 1, Coop = 2, pKCa = 6.5, Vmin = 0.0',f)
 
     # Show results
     log('# Results for {}:'.format(name),f)
